@@ -1,0 +1,790 @@
+<!doctype html>
+<html lang="en">
+<head>
+<meta charset="utf-8">
+<meta name="viewport" content="width=device-width,initial-scale=1">
+<title>SupplyNow — Cash Recovery Console</title>
+<style>
+  :root{
+    --ground:#EEF1F5; --panel:#FFFFFF; --panel2:#F6F8FB; --field:#FFFFFF;
+    --ink:#141E2B; --soft:#4A586B; --faint:#8793A5; --line:#DCE3EC; --line2:#E7ECF2;
+    --accent:#215E93; --accent-soft:#215E9314;
+    --climb:#217A57; --caution:#B07C11; --critical:#B0433A;
+    --climb-bg:#217A5716; --caution-bg:#B07C1116; --critical-bg:#B0433A16;
+    --mono:ui-monospace,"SF Mono",Menlo,Consolas,monospace;
+    --sans:system-ui,-apple-system,"Segoe UI",Roboto,sans-serif;
+  }
+  @media (prefers-color-scheme:dark){
+    :root{
+      --ground:#0B111A; --panel:#131D29; --panel2:#18232F; --field:#0E1720;
+      --ink:#E7ECF3; --soft:#9DABBD; --faint:#5F6E80; --line:#243040; --line2:#1E2833;
+      --accent:#57A0DA; --accent-soft:#57A0DA1c;
+      --climb:#43AC7E; --caution:#DFA733; --critical:#DB5F4C;
+      --climb-bg:#43AC7E1c; --caution-bg:#DFA7331c; --critical-bg:#DB5F4C1c;
+    }
+  }
+  :root[data-theme="light"]{--ground:#EEF1F5;--panel:#FFFFFF;--panel2:#F6F8FB;--field:#FFFFFF;--ink:#141E2B;--soft:#4A586B;--faint:#8793A5;--line:#DCE3EC;--line2:#E7ECF2;--accent:#215E93;--accent-soft:#215E9314;--climb:#217A57;--caution:#B07C11;--critical:#B0433A;--climb-bg:#217A5716;--caution-bg:#B07C1116;--critical-bg:#B0433A16;}
+  :root[data-theme="dark"]{--ground:#0B111A;--panel:#131D29;--panel2:#18232F;--field:#0E1720;--ink:#E7ECF3;--soft:#9DABBD;--faint:#5F6E80;--line:#243040;--line2:#1E2833;--accent:#57A0DA;--accent-soft:#57A0DA1c;--climb:#43AC7E;--caution:#DFA733;--critical:#DB5F4C;--climb-bg:#43AC7E1c;--caution-bg:#DFA7331c;--critical-bg:#DB5F4C1c;}
+  *{box-sizing:border-box}
+  body{margin:0;background:var(--ground);color:var(--ink);font-family:var(--sans);font-size:14px;line-height:1.5;-webkit-font-smoothing:antialiased}
+  .num{font-family:var(--mono);font-variant-numeric:tabular-nums}
+  .wrap{max-width:1180px;margin:0 auto;padding:24px 20px 80px}
+  h1,h2,h3{margin:0;text-wrap:balance}
+  .eyebrow{font-family:var(--mono);font-size:11px;letter-spacing:.2em;text-transform:uppercase;color:var(--accent);font-weight:600}
+  .tabs{display:flex;gap:2px;margin:20px 0 2px;border-bottom:1px solid var(--line);flex-wrap:wrap}
+  .tabs button{border:none;background:none;border-bottom:2px solid transparent;border-radius:0;padding:10px 16px;color:var(--soft);font-weight:600;font-size:13.5px}
+  .tabs button:hover{color:var(--ink)}
+  .tabs button.on{color:var(--accent);border-bottom-color:var(--accent)}
+  .tab[hidden]{display:none}
+  .ovstats{display:grid;grid-template-columns:repeat(5,1fr);gap:10px;margin:18px 0}
+  .ost{background:var(--panel);border:1px solid var(--line);border-radius:10px;padding:12px 13px}
+  .ost .l{font-family:var(--mono);font-size:9.5px;letter-spacing:.09em;text-transform:uppercase;color:var(--faint)}
+  .ost .v{font-family:var(--mono);font-size:18px;font-weight:600;margin-top:5px}
+  @media(max-width:760px){.ovstats{grid-template-columns:repeat(2,1fr)}}
+  .syncbar{display:flex;align-items:center;gap:10px;flex-wrap:wrap;background:var(--panel);border:1px solid var(--line);border-radius:11px;padding:10px 14px;margin-bottom:6px}
+  .syncbar .eyebrow{white-space:nowrap}
+  .syncbar input#endpoint{flex:1;min-width:220px;font-family:var(--mono);font-size:12px;background:var(--field);border:1px solid var(--line);border-radius:7px;color:var(--ink);padding:8px 10px}
+  .syncbar input#endpoint:focus{outline:2px solid var(--accent);outline-offset:1px}
+  .syncbar .autolbl{font-size:12px;color:var(--soft);display:flex;align-items:center;gap:5px;white-space:nowrap}
+  #gate{position:fixed;inset:0;z-index:100;background:var(--ground);display:flex;align-items:center;justify-content:center;padding:20px}
+  #gate .box{background:var(--panel);border:1px solid var(--line);border-radius:16px;padding:34px 30px;max-width:380px;width:100%;text-align:center}
+  #gate h2{font-size:21px;margin:6px 0}
+  #gate p{color:var(--soft);font-size:13.5px;margin:0 0 18px}
+  #gate input{width:100%;font-family:var(--mono);font-size:14px;text-align:center;letter-spacing:.08em;background:var(--field);border:1px solid var(--line);border-radius:9px;color:var(--ink);padding:12px}
+  #gate .err{color:var(--critical);font-size:12.5px;min-height:16px;margin-top:8px;font-family:var(--mono)}
+  body.locked{overflow:hidden;max-height:100vh}
+
+  header{border-bottom:1px solid var(--line);padding-bottom:18px;margin-bottom:20px}
+  .brow{display:flex;justify-content:space-between;align-items:flex-start;gap:16px;flex-wrap:wrap}
+  h1{font-size:26px;font-weight:700;letter-spacing:-.02em;margin:10px 0 6px}
+  .sub{color:var(--soft);max-width:64ch;font-size:14.5px}
+  .toolbar{display:flex;gap:8px;flex-wrap:wrap;align-items:center}
+  button{font-family:var(--sans);font-size:12.5px;font-weight:600;border-radius:8px;border:1px solid var(--line);
+    background:var(--panel);color:var(--ink);padding:8px 13px;cursor:pointer;transition:.12s}
+  button:hover{border-color:var(--accent);color:var(--accent)}
+  button.primary{background:var(--accent);color:#fff;border-color:var(--accent)}
+  button.primary:hover{filter:brightness(1.08);color:#fff}
+  button:focus-visible,input:focus-visible{outline:2px solid var(--accent);outline-offset:1px}
+  .saved{font-family:var(--mono);font-size:11px;color:var(--faint);align-self:center}
+
+  /* readout dock */
+  .dock{position:sticky;top:0;z-index:20;background:var(--ground);padding:12px 0 14px;margin-bottom:8px;
+    border-bottom:1px solid var(--line)}
+  .gauges{display:grid;grid-template-columns:repeat(6,1fr);gap:10px}
+  .g{background:var(--panel);border:1px solid var(--line);border-radius:11px;padding:12px 13px;position:relative;overflow:hidden}
+  .g::before{content:"";position:absolute;left:0;top:0;bottom:0;width:3px;background:var(--gc,var(--accent))}
+  .g .l{font-family:var(--mono);font-size:9.5px;letter-spacing:.1em;text-transform:uppercase;color:var(--faint);line-height:1.3}
+  .g .v{font-family:var(--mono);font-size:20px;font-weight:600;margin-top:5px;letter-spacing:-.01em}
+  .g .s{font-size:11px;color:var(--soft);margin-top:2px}
+  .g.crit{--gc:var(--critical)} .g.crit .v{color:var(--critical)}
+  .g.caut{--gc:var(--caution)} .g.caut .v{color:var(--caution)}
+  .g.good{--gc:var(--climb)} .g.good .v{color:var(--climb)}
+
+  .cols{display:grid;grid-template-columns:1fr 1fr;gap:18px;margin-top:22px}
+  @media(max-width:900px){.cols{grid-template-columns:1fr}.gauges{grid-template-columns:repeat(3,1fr)}}
+  @media(max-width:560px){.gauges{grid-template-columns:repeat(2,1fr)}}
+
+  .card{background:var(--panel);border:1px solid var(--line);border-radius:13px;overflow:hidden}
+  .card > h2{font-size:14px;font-weight:680;padding:13px 16px;border-bottom:1px solid var(--line);display:flex;align-items:center;gap:9px}
+  .card > h2 .tick{font-family:var(--mono);font-size:10px;color:var(--accent);font-weight:600}
+  .card .body{padding:6px 16px 14px}
+  .hintbar{font-size:11.5px;color:var(--faint);padding:9px 16px;background:var(--panel2);border-bottom:1px solid var(--line)}
+
+  .row{display:grid;grid-template-columns:1fr auto;align-items:center;gap:10px;padding:6px 0;border-bottom:1px solid var(--line2)}
+  .row:last-child{border-bottom:none}
+  .row label{color:var(--soft);font-size:13px}
+  .row label small{display:block;color:var(--faint);font-size:11px}
+  .inp{display:flex;align-items:center;gap:3px;background:var(--field);border:1px solid var(--line);border-radius:7px;padding:2px 7px;transition:.12s}
+  .inp:focus-within{border-color:var(--accent)}
+  .inp .pfx{color:var(--faint);font-family:var(--mono);font-size:12px}
+  input[type=number]{border:none;background:transparent;color:var(--ink);font-family:var(--mono);font-variant-numeric:tabular-nums;
+    font-size:13px;width:88px;text-align:right;padding:5px 0;-moz-appearance:textfield}
+  input::-webkit-outer-spin-button,input::-webkit-inner-spin-button{-webkit-appearance:none;margin:0}
+  .need input{color:var(--caution)}
+  .need .inp{border-color:var(--caution);background:var(--caution-bg)}
+  .flag{font-family:var(--mono);font-size:9px;letter-spacing:.06em;text-transform:uppercase;color:var(--caution);
+    border:1px solid var(--caution);border-radius:4px;padding:1px 4px;margin-left:6px;vertical-align:middle}
+  .ok{font-family:var(--mono);font-size:9px;letter-spacing:.06em;text-transform:uppercase;color:var(--climb);
+    border:1px solid var(--climb);border-radius:4px;padding:1px 4px;margin-left:6px;vertical-align:middle}
+
+  .subt{display:flex;justify-content:space-between;align-items:center;padding:10px 0 2px;margin-top:4px;border-top:1.5px solid var(--line);
+    font-weight:600;font-size:13px}
+  .subt .num{font-size:14px}
+
+  /* mini table (debt) */
+  table{width:100%;border-collapse:collapse}
+  .thd{display:grid;grid-template-columns:1.3fr 1fr 1fr .8fr;gap:8px;font-family:var(--mono);font-size:9.5px;
+    letter-spacing:.08em;text-transform:uppercase;color:var(--faint);padding:6px 0;border-bottom:1px solid var(--line)}
+  .trow{display:grid;grid-template-columns:1.3fr 1fr 1fr .8fr;gap:8px;align-items:center;padding:5px 0;border-bottom:1px solid var(--line2)}
+  .trow .nm{font-size:12.5px;color:var(--soft)}
+  .trow .miniinp{background:var(--field);border:1px solid var(--line);border-radius:6px;display:flex;align-items:center;padding:1px 5px}
+  .trow.need .miniinp{border-color:var(--caution);background:var(--caution-bg)}
+  .trow input{width:100%;font-size:12px;text-align:right;padding:4px 0}
+  .trow .pfx{font-family:var(--mono);font-size:11px;color:var(--faint)}
+
+  /* levers */
+  .lev{padding:11px 0;border-bottom:1px solid var(--line2)}
+  .lev:last-child{border-bottom:none}
+  .lev .top{display:flex;justify-content:space-between;align-items:baseline;margin-bottom:7px}
+  .lev .nm{font-size:13px;color:var(--ink);font-weight:560}
+  .lev .val{font-family:var(--mono);font-size:12.5px;color:var(--climb);font-weight:600}
+  input[type=range]{width:100%;accent-color:var(--accent);height:4px}
+  .toggle{display:flex;align-items:center;justify-content:space-between;padding:9px 0;border-bottom:1px solid var(--line2)}
+  .toggle:last-child{border-bottom:none}
+  .toggle .nm{font-size:13px;color:var(--soft)}
+  .toggle .nm small{display:block;color:var(--faint);font-size:11px}
+  .sw{position:relative;width:40px;height:22px;flex:none}
+  .sw input{opacity:0;width:100%;height:100%;margin:0;cursor:pointer}
+  .sw .tk{position:absolute;inset:0;background:var(--line);border-radius:99px;transition:.15s;pointer-events:none}
+  .sw .tk::after{content:"";position:absolute;left:2px;top:2px;width:18px;height:18px;background:#fff;border-radius:50%;transition:.15s}
+  .sw input:checked + .tk{background:var(--climb)}
+  .sw input:checked + .tk::after{transform:translateX(18px)}
+
+  .chartcard{margin-top:18px}
+  .chartcard .body{padding:14px 16px 6px}
+  .legend{display:flex;gap:18px;font-size:11.5px;color:var(--soft);padding:0 4px 8px;font-family:var(--mono)}
+  .legend i{display:inline-block;width:14px;height:3px;border-radius:2px;margin-right:6px;vertical-align:middle}
+  .verdict{margin-top:12px;padding:12px 15px;border-radius:10px;font-size:13.5px;line-height:1.55}
+  .verdict.bad{background:var(--critical-bg);border:1px solid var(--critical)}
+  .verdict.warn{background:var(--caution-bg);border:1px solid var(--caution)}
+  .verdict.good{background:var(--climb-bg);border:1px solid var(--climb)}
+  .verdict b{font-family:var(--mono)}
+  .foot{margin-top:30px;padding-top:16px;border-top:1px solid var(--line);font-size:11.5px;color:var(--faint);line-height:1.7}
+  .addbtn{font-size:11.5px;padding:5px 9px;margin-top:8px}
+</style>
+</head>
+<body>
+
+
+<div id="gate">
+  <div class="box">
+    <div class="eyebrow">SupplyNow · Secure</div>
+    <h2>Cash Recovery Console</h2>
+    <p>Enter the access passphrase to continue.</p>
+    <input id="gatepass" type="password" placeholder="passphrase" autocomplete="off" autofocus>
+    <div class="err" id="gateerr"></div>
+    <button class="primary" id="gatego" style="margin-top:12px;width:100%;padding:12px">Unlock</button>
+  </div>
+</div>
+
+<div class="wrap">
+  <header>
+    <div class="brow">
+      <div>
+        <span class="eyebrow">Cash Recovery · Live Console</span>
+        <h1>SupplyNow budget &amp; scenario cockpit</h1>
+        <p class="sub">Plug the real numbers into the amber <span class="flag">need</span> fields, then fly scenarios with the levers. Everything recomputes live — runway, monthly burn, breakeven gap, and the bridge you actually need. Saves to this browser automatically.</p>
+      </div>
+      <div class="toolbar">
+        <button id="export" class="primary">Export budget (CSV)</button>
+        <button id="exportjson">Export state (JSON)</button>
+        <button id="import">Import / sync (JSON)</button>
+        <input type="file" id="importfile" accept="application/json,.json" style="display:none">
+        <button id="reset">Reset</button>
+        <span class="saved" id="saved">saved locally</span>
+      </div>
+    </div>
+  </header>
+
+  <div class="syncbar">
+    <span class="eyebrow">Live feed</span>
+    <input id="endpoint" placeholder="Paste your Apps Script /exec URL, then Sync" spellcheck="false" autocapitalize="off">
+    <button id="syncnow" class="primary">Sync now</button>
+    <label class="autolbl"><input type="checkbox" id="autosync"> auto · 5 min</label>
+    <span id="synced" class="saved">not synced</span>
+  </div>
+
+  <!-- READOUT DOCK -->
+  <div class="dock">
+    <div class="gauges" id="gauges"></div>
+  </div>
+
+  <nav class="tabs">
+    <button data-tab="overview" class="on">Overview — curves</button>
+    <button data-tab="planner">Planner &amp; runway</button>
+  </nav>
+
+  <div class="tab" id="tab-overview">
+    <div class="ovstats" id="ovstats"></div>
+    <div class="card">
+      <h2><span class="tick">CURVES</span> Sales, spending &amp; operations — 15-month history</h2>
+      <div class="body">
+        <div class="legend">
+          <span><i style="background:var(--accent)"></i>Sales (revenue)</span>
+          <span><i style="background:var(--caution)"></i>Spending (COGS + overhead)</span>
+          <span><i style="background:var(--climb)"></i>Profit month</span>
+          <span><i style="background:var(--critical)"></i>Loss month</span>
+        </div>
+        <svg id="curves" viewBox="0 0 1120 340" width="100%" height="340" role="img" aria-label="Sales, spending and operations curves"></svg>
+        <div style="font-size:12.5px;color:var(--soft);padding:8px 4px 2px">The shaded band between the lines <b>is</b> the operations curve — green where sales cleared spend, red where spend won. Source: QuickBooks P&amp;L, Apr 2025 – Jun 2026. The live scenario runway lives on the Planner tab.</div>
+      </div>
+    </div>
+  </div>
+
+  <div class="tab" id="tab-planner" hidden>
+  <div class="cols">
+    <!-- LEFT: current state inputs -->
+    <div>
+      <div class="card">
+        <h2><span class="tick">A</span> Cash on hand — today</h2>
+        <div class="hintbar">Pull today's real balances. Only Mercury Checking is known live (7/29); the rest are <span class="flag">need</span>.</div>
+        <div class="body" id="cash"></div>
+      </div>
+
+      <div class="card" style="margin-top:18px">
+        <h2><span class="tick">B</span> Monthly cash in — revenue by lane</h2>
+        <div class="hintbar">Collected revenue, not billed. The pass-through lanes run at thin margin — that's the reprice lever.</div>
+        <div class="body" id="rev"></div>
+      </div>
+
+      <div class="card" style="margin-top:18px">
+        <h2><span class="tick">C</span> Monthly cash out — operating</h2>
+        <div class="hintbar">Prefilled from the Recurring tab &amp; P&amp;L. Payroll lives in the staff module below. Confirmed lines marked <span class="ok">set</span>.</div>
+        <div class="body" id="costs"></div>
+      </div>
+
+      <div class="card" style="margin-top:18px">
+        <h2><span class="tick">H</span> Staff &amp; labor — reconfigure</h2>
+        <div class="hintbar">Per-person W-2. Flip a role <b>off</b> to cut it, or set a <b>% cut</b> to slim salary/hours. The top row (highest paid) is the single biggest lever.</div>
+        <div class="body" id="staff"></div>
+      </div>
+    </div>
+
+    <!-- RIGHT: debt, AP, raises, levers -->
+    <div>
+      <div class="card">
+        <h2><span class="tick">D</span> Debt &amp; lender stack</h2>
+        <div class="hintbar">The #1 gap. Enter balance, monthly payment &amp; APR per line — this drives real restructure math.</div>
+        <div class="body">
+          <div class="thd"><span>Lender</span><span style="text-align:right">Balance</span><span style="text-align:right">Pay / mo</span><span style="text-align:right">APR %</span></div>
+          <div id="debt"></div>
+          <div class="subt"><span>Monthly debt service</span><span class="num" id="debtSvc">$0</span></div>
+          <div class="subt" style="border-top:none;padding-top:2px"><span class="soft" style="font-weight:500;color:var(--faint)">Total debt outstanding</span><span class="num" id="debtBal" style="color:var(--faint)">$0</span></div>
+        </div>
+      </div>
+
+      <div class="card" style="margin-top:18px">
+        <h2><span class="tick">E</span> Aged payables &amp; catch-up</h2>
+        <div class="body" id="ap"></div>
+      </div>
+
+      <div class="card" style="margin-top:18px">
+        <h2><span class="tick">F</span> Capital events — raises</h2>
+        <div class="hintbar">Toggle a raise <span class="ok">committed</span> to count it. Uncommitted stays off the projection unless you flip the switch below.</div>
+        <div class="body" id="raises"></div>
+      </div>
+
+      <div class="card" style="margin-top:18px">
+        <h2><span class="tick">G</span> Scenario levers</h2>
+        <div class="body" id="levers"></div>
+      </div>
+    </div>
+  </div>
+
+  <!-- CHART -->
+  <div class="card chartcard">
+    <h2><span class="tick">RADAR</span> 12-month cash runway — base vs. scenario</h2>
+    <div class="body">
+      <div class="legend">
+        <span><i style="background:var(--faint)"></i>Base case</span>
+        <span><i style="background:var(--accent)"></i>With levers &amp; raises</span>
+        <span><i style="background:var(--critical);height:2px"></i>Zero line</span>
+      </div>
+      <svg id="chart" viewBox="0 0 1120 300" width="100%" height="300" role="img" aria-label="Cash runway projection"></svg>
+      <div id="verdict" class="verdict"></div>
+    </div>
+  </div>
+  </div><!-- /tab-planner -->
+
+  <div class="foot" id="foot"></div>
+</div>
+
+<script>
+const DEFAULTS={
+  cash:[
+    {k:'Mercury Checking',v:0,need:true},
+    {k:'Brex Checking',v:0,need:true},
+    {k:'Mercury Savings',v:0,need:true},
+    {k:'Rho balance',v:0,need:true},
+    {k:'AMEX available',v:0,need:true},
+  ],
+  rev:[
+    {k:'Lane 1 — grocery',v:0,need:true},
+    {k:'Lane 2 — foodservice',v:0,need:true},
+    {k:'Lane 3 — fleet partner',v:0,need:true},
+    {k:'Lane 4 — catering',v:0,need:true},
+    {k:'All other',v:0,need:true},
+  ],
+  staff:[
+    {k:'Owner / CEO',v:0,cut:0,on:true},
+    {k:'Operations',v:0,cut:0,on:true},
+    {k:'Admin / support',v:0,cut:0,on:true},
+    {k:'Coordinator 1',v:0,cut:0,on:true},
+    {k:'Coordinator 2',v:0,cut:0,on:true},
+    {k:'Part-time',v:0,cut:0,on:true},
+  ],
+  costs:[
+    {k:'Fleet partner — pass-through',v:0,need:true},
+    {k:'Fleet & fuel',v:0,need:true},
+    {k:'Contract / jobber labor',v:0,need:true},
+    {k:'Auto insurance',v:0,need:true},
+    {k:'Rent',v:0,need:true},
+    {k:'Software (20 tools)',v:0,need:true},
+    {k:'Legal & G&A',v:0,need:true},
+  ],
+  debt:[
+    {k:'Term loan 1',bal:0,pay:0,apr:0,need:true},
+    {k:'MCA 1',bal:0,pay:0,apr:0,need:true},
+    {k:'MCA 2',bal:0,pay:0,apr:0,need:true},
+    {k:'MCA 3',bal:0,pay:0,apr:0,need:true},
+    {k:'Revolving 1',bal:0,pay:0,apr:0,need:true},
+    {k:'Revolving 2',bal:0,pay:0,apr:0,need:true},
+    {k:'Insurance finance',bal:0,pay:0,apr:0,need:true},
+    {k:'Card 1',bal:0,pay:0,apr:0,need:true},
+    {k:'Card 2',bal:0,pay:0,apr:0,need:true},
+  ],
+  ap:[
+    {k:'Fleet partner',v:0,need:true},
+    {k:'Supplier 1',v:0,need:true},
+    {k:'Financing payables',v:0,need:true},
+    {k:'Fleet 2',v:0,need:true},
+  ],
+  apCatchup:0,
+  raises:[
+    {k:'Bridge',amt:0,month:1,committed:false},
+    {k:'Priced round',amt:0,month:3,committed:false},
+    {k:'Grant',amt:0,month:5,committed:false},
+  ],
+  levers:{revGrowth:0,paReprice:0,mcaSave:0,cutLegal:false,cutSoftware:false,stopNSF:false,includeHoped:false},
+  burden:{on:true,pct:11.5},
+  cutAmt:{legal:5000,software:1000,nsf:1000}
+};
+const KEY='sn_cash_console_v3';
+let S=load();
+function load(){try{const r=JSON.parse(localStorage.getItem(KEY));if(r&&r.cash&&r.staff){if(!r.burden)r.burden=structuredClone(DEFAULTS.burden);return r}}catch(e){}return structuredClone(DEFAULTS)}
+function save(){try{localStorage.setItem(KEY,JSON.stringify(S));flashSaved()}catch(e){}}
+let st;function flashSaved(){const el=document.getElementById('saved');el.textContent='✓ saved';clearTimeout(st);st=setTimeout(()=>el.textContent='saved locally',1200)}
+
+const $=(id)=>document.getElementById(id);
+const money=(n)=>{const s=n<0?'-':'';n=Math.abs(Math.round(n));return s+'$'+n.toLocaleString('en-US')};
+const money1=(n)=>{const s=n<0?'-':'';const a=Math.abs(n);if(a>=1000)return s+'$'+(a/1000).toFixed(a>=100000?0:1)+'K';return s+'$'+Math.round(a)};
+const parse=(v)=>{const n=parseFloat(String(v).replace(/[^0-9.\-]/g,''));return isNaN(n)?0:n};
+
+/* ---------- build inputs once ---------- */
+function moneyRow(item,arr,i,pfx){
+  const row=document.createElement('div');row.className='row'+(item.need?' need':'');
+  row.innerHTML=`<label>${item.k}${item.need?'<span class="flag">need</span>':'<span class="ok">set</span>'}</label>
+   <div class="inp"><span class="pfx">${pfx||'$'}</span><input type="number" step="any" value="${item.v}"></div>`;
+  row.querySelector('input').addEventListener('input',e=>{arr[i].v=parse(e.target.value);arr[i].need=false;row.classList.remove('need');
+    row.querySelector('label').innerHTML=`${item.k}<span class="ok">set</span>`;update()});
+  return row;
+}
+function buildList(containerId,arr,withSub,subLabel){
+  const c=$(containerId);c.innerHTML='';
+  arr.forEach((it,i)=>c.appendChild(moneyRow(it,arr,i)));
+  if(withSub){const s=document.createElement('div');s.className='subt';s.innerHTML=`<span>${subLabel}</span><span class="num" id="${containerId}_sub">$0</span>`;c.appendChild(s)}
+}
+
+function buildDebt(){
+  const c=$('debt');c.innerHTML='';
+  S.debt.forEach((d,i)=>{
+    const r=document.createElement('div');r.className='trow'+(d.need?' need':'');
+    r.innerHTML=`<span class="nm">${d.k}</span>
+      <div class="miniinp"><span class="pfx">$</span><input type="number" step="any" value="${d.bal||''}" placeholder="—"></div>
+      <div class="miniinp"><span class="pfx">$</span><input type="number" step="any" value="${d.pay||''}" placeholder="—"></div>
+      <div class="miniinp"><input type="number" step="any" value="${d.apr||''}" placeholder="—"></div>`;
+    const [b,p,a]=r.querySelectorAll('input');
+    b.addEventListener('input',e=>{d.bal=parse(e.target.value);touchDebt(d,r);update()});
+    p.addEventListener('input',e=>{d.pay=parse(e.target.value);touchDebt(d,r);update()});
+    a.addEventListener('input',e=>{d.apr=parse(e.target.value);update()});
+    c.appendChild(r);
+  });
+}
+function touchDebt(d,r){if(d.bal||d.pay){d.need=false;r.classList.remove('need')}}
+
+function buildAP(){
+  const c=$('ap');c.innerHTML='';
+  S.ap.forEach((it,i)=>c.appendChild(moneyRow(it,S.ap,i)));
+  const s=document.createElement('div');s.className='subt';s.innerHTML=`<span>Total overhang</span><span class="num" id="ap_sub">$0</span>`;c.appendChild(s);
+  const cu=document.createElement('div');cu.className='row';cu.style.marginTop='8px';
+  cu.innerHTML=`<label>Monthly AP catch-up <small>paydown you'll commit each month</small></label>
+   <div class="inp"><span class="pfx">$</span><input type="number" step="any" value="${S.apCatchup}"></div>`;
+  cu.querySelector('input').addEventListener('input',e=>{S.apCatchup=parse(e.target.value);update()});
+  c.appendChild(cu);
+}
+
+function buildRaises(){
+  const c=$('raises');c.innerHTML='';
+  S.raises.forEach((rz,i)=>{
+    const r=document.createElement('div');r.className='row';
+    r.innerHTML=`<label>${rz.k} <small>month <span class="mo">${rz.month}</span> of 12</small></label>
+      <div style="display:flex;gap:8px;align-items:center">
+        <div class="inp"><span class="pfx">$</span><input type="number" step="any" value="${rz.amt}" style="width:74px"></div>
+        <input type="number" min="1" max="12" value="${rz.month}" style="width:38px;text-align:center" title="month" class="mo-in">
+        <span class="sw"><input type="checkbox" ${rz.committed?'checked':''}><span class="tk"></span></span>
+      </div>`;
+    const [amt,mo]=r.querySelectorAll('input[type=number]');
+    amt.addEventListener('input',e=>{rz.amt=parse(e.target.value);update()});
+    mo.addEventListener('input',e=>{rz.month=Math.max(1,Math.min(12,parseInt(e.target.value)||1));r.querySelector('.mo').textContent=rz.month;update()});
+    r.querySelector('input[type=checkbox]').addEventListener('change',e=>{rz.committed=e.target.checked;update()});
+    c.appendChild(r);
+  });
+}
+
+function survivalPreset(){
+  S.levers={revGrowth:5,paReprice:12000,mcaSave:4000,cutLegal:true,cutSoftware:true,stopNSF:true,includeHoped:false};
+  S.staff.forEach((p,i)=>{if(i===0)p.cut=50;});
+  buildStaff();buildLevers();update();
+}
+function clearLevers(){
+  S.levers={revGrowth:0,paReprice:0,mcaSave:0,cutLegal:false,cutSoftware:false,stopNSF:false,includeHoped:false};
+  S.staff.forEach(p=>{p.cut=0;p.on=true;});
+  buildStaff();buildLevers();update();
+}
+function buildLevers(){
+  const c=$('levers');c.innerHTML='';
+  const pr=document.createElement('div');pr.style.cssText='display:flex;gap:8px;margin-bottom:12px;flex-wrap:wrap';
+  pr.innerHTML=`<button id="p-surv" class="addbtn" style="border-color:var(--critical);color:var(--critical)">▼ Survival preset</button>
+    <button id="p-clr" class="addbtn">Clear levers</button>`;
+  c.appendChild(pr);
+  pr.querySelector('#p-surv').addEventListener('click',survivalPreset);
+  pr.querySelector('#p-clr').addEventListener('click',clearLevers);
+  const sliders=[
+    {key:'revGrowth',nm:'Revenue growth',min:0,max:40,unit:'%',fmt:v=>`+${v}%`},
+    {key:'paReprice',nm:'PA lane reprice — added margin',min:0,max:20000,step:500,unit:'$',fmt:v=>`+${money1(v)}/mo`},
+    {key:'mcaSave',nm:'MCA consolidation savings',min:0,max:8000,step:250,unit:'$',fmt:v=>`-${money1(v)}/mo debt`},
+  ];
+  sliders.forEach(s=>{
+    const d=document.createElement('div');d.className='lev';
+    d.innerHTML=`<div class="top"><span class="nm">${s.nm}</span><span class="val" id="lv_${s.key}"></span></div>
+      <input type="range" min="${s.min}" max="${s.max}" step="${s.step||1}" value="${S.levers[s.key]}">`;
+    const inp=d.querySelector('input');
+    const lab=()=>$('lv_'+s.key).textContent=s.fmt(S.levers[s.key]);
+    inp.addEventListener('input',e=>{S.levers[s.key]=parse(e.target.value);lab();update()});
+    c.appendChild(d);lab();
+  });
+  const toggles=[
+    {key:'cutLegal',nm:'Consolidate legal → 1 firm',sub:`saves ~${money1(DEFAULTS.cutAmt.legal)}/mo`},
+    {key:'cutSoftware',nm:'Software audit',sub:`saves ~${money1(DEFAULTS.cutAmt.software)}/mo`},
+    {key:'stopNSF',nm:'Kill NSF / overdraft leakage',sub:`saves ~${money1(DEFAULTS.cutAmt.nsf)}/mo`},
+    {key:'includeHoped',nm:'Include uncommitted raises',sub:'model the hoped-for capital'},
+  ];
+  toggles.forEach(t=>{
+    const d=document.createElement('div');d.className='toggle';
+    d.innerHTML=`<span class="nm">${t.nm}<small>${t.sub}</small></span>
+      <span class="sw"><input type="checkbox" ${S.levers[t.key]?'checked':''}><span class="tk"></span></span>`;
+    d.querySelector('input').addEventListener('change',e=>{S.levers[t.key]=e.target.checked;update()});
+    c.appendChild(d);
+  });
+}
+
+/* ---------- compute ---------- */
+function compute(){
+  const cash=S.cash.reduce((a,b)=>a+ (+b.v||0),0);
+  const rev=S.rev.reduce((a,b)=>a+(+b.v||0),0);
+  const burdenF=S.burden&&S.burden.on?1+(+S.burden.pct||0)/100:1;
+  const payroll=S.staff.reduce((a,p)=>a+(p.on?(+p.v||0)*(1-(p.cut||0)/100):0),0)*burdenF;
+  const payrollFull=S.staff.reduce((a,p)=>a+(+p.v||0),0)*burdenF;
+  const staffOn=S.staff.filter(p=>p.on).length;
+  const cost=S.costs.reduce((a,b)=>a+(+b.v||0),0)+payroll;
+  const debtSvc=S.debt.reduce((a,b)=>a+(+b.pay||0),0);
+  const debtBal=S.debt.reduce((a,b)=>a+(+b.bal||0),0);
+  const apTotal=S.ap.reduce((a,b)=>a+(+b.v||0),0);
+  const apCatch=+S.apCatchup||0;
+
+  // base monthly net (steady state, no raises)
+  const baseNet=rev-cost-debtSvc-apCatch;
+
+  // scenario
+  const L=S.levers;
+  const revS=rev*(1+L.revGrowth/100);
+  const costS=cost-(L.cutLegal?DEFAULTS.cutAmt.legal:0)-(L.cutSoftware?DEFAULTS.cutAmt.software:0)-(L.stopNSF?DEFAULTS.cutAmt.nsf:0);
+  const debtS=Math.max(0,debtSvc-L.mcaSave);
+  const scenNet=revS-costS-debtS-apCatch+(+L.paReprice||0);
+
+  // projections 12mo
+  const proj=(net,useRaises)=>{
+    const pts=[cash];let bal=cash,min=cash,minM=0;
+    for(let m=1;m<=12;m++){
+      bal+=net;
+      S.raises.forEach(r=>{if(r.month===m && (r.committed || (useRaises && L.includeHoped))) bal+=(+r.amt||0)});
+      pts.push(bal);if(bal<min){min=bal;minM=m}
+    }
+    return {pts,min,minM};
+  };
+  const base=proj(baseNet,false);
+  const scen=proj(scenNet,true);
+
+  const runway=(net,c)=> net>=0?Infinity:Math.max(0,c/(-net));
+  const breakevenGap=baseNet<0?-baseNet:0;
+  // bridge: how deep the scenario dips below zero (extra cash needed on top of modeled raises)
+  const bridge=scen.min<0?Math.ceil(-scen.min/1000)*1000:0;
+
+  return {cash,rev,cost,payroll,payrollFull,staffOn,debtSvc,debtBal,apTotal,apCatch,baseNet,scenNet,base,scen,
+    runwayBase:runway(baseNet,cash),runwayScen:runway(scenNet,cash),breakevenGap,bridge};
+}
+
+/* ---------- render outputs ---------- */
+function update(){
+  const c=compute();
+  // sub totals
+  const setSub=(id,v)=>{const e=$(id);if(e)e.textContent=money(v)};
+  setSub('rev_sub',c.rev);setSub('costs_sub',c.cost-c.payroll);setSub('ap_sub',c.apTotal);
+  setSub('staff_sub',c.payroll);
+  const laborPct=c.rev>0?Math.round(c.payroll/c.rev*100):0;
+  const sm=$('staff_meta');if(sm)sm.textContent=`· ${c.staffOn} of ${S.staff.length} active · ${laborPct}% of revenue`+(c.payroll<c.payrollFull?` · ${money(c.payrollFull-c.payroll)} trimmed`:'');
+  $('debtSvc').textContent=money(c.debtSvc);$('debtBal').textContent=money(c.debtBal);
+
+  // gauges
+  const rwTxt=(m)=>m===Infinity?'∞ positive':m<1?'< 1 mo':m.toFixed(1)+' mo';
+  const gg=[
+    {l:'Liquid cash',v:money(c.cash),s:'sum of accounts',cls:c.cash<25000?'crit':c.cash<75000?'caut':'good'},
+    {l:'Net / mo · base',v:money(c.baseNet),s:'today\'s reality',cls:c.baseNet<0?'crit':'good'},
+    {l:'Net / mo · scenario',v:money(c.scenNet),s:'with your levers',cls:c.scenNet<0?'crit':c.scenNet<5000?'caut':'good'},
+    {l:'Runway · base',v:rwTxt(c.runwayBase),s:'months to zero',cls:c.runwayBase===Infinity?'good':c.runwayBase<2?'crit':c.runwayBase<4?'caut':'good'},
+    {l:'Breakeven gap',v:money(c.breakevenGap)+'/mo',s:'lift to reach 0',cls:c.breakevenGap>0?'caut':'good'},
+    {l:'Bridge needed',v:money(c.bridge),s:'deepest scenario dip',cls:c.bridge>0?'caut':'good'},
+  ];
+  $('gauges').innerHTML=gg.map(g=>`<div class="g ${g.cls}"><div class="l">${g.l}</div><div class="v">${g.v}</div><div class="s">${g.s}</div></div>`).join('');
+
+  drawChart(c);drawVerdict(c);drawFoot(c);
+  save();
+}
+
+function drawChart(c){
+  const svg=$('chart');const W=1120,H=300,padL=54,padR=14,padT=16,padB=26;
+  const cs=getComputedStyle(document.documentElement);
+  const col={faint:cs.getPropertyValue('--faint').trim(),accent:cs.getPropertyValue('--accent').trim(),
+    crit:cs.getPropertyValue('--critical').trim(),line:cs.getPropertyValue('--line').trim(),soft:cs.getPropertyValue('--soft').trim()};
+  const all=[...c.base.pts,...c.scen.pts,0];
+  let lo=Math.min(...all),hi=Math.max(...all);const pad=(hi-lo)*0.12||1000;lo-=pad;hi+=pad;
+  const X=i=>padL+(W-padL-padR)*(i/12);
+  const Y=v=>padT+(H-padT-padB)*(1-(v-lo)/(hi-lo));
+  const path=pts=>pts.map((p,i)=>(i?'L':'M')+X(i).toFixed(1)+' '+Y(p).toFixed(1)).join(' ');
+  let s='';
+  // gridlines
+  for(let g=0;g<=4;g++){const v=lo+(hi-lo)*g/4;const y=Y(v);
+    s+=`<line x1="${padL}" y1="${y.toFixed(1)}" x2="${W-padR}" y2="${y.toFixed(1)}" stroke="${col.line}" stroke-width="1"/>`;
+    s+=`<text x="${padL-8}" y="${(y+3).toFixed(1)}" text-anchor="end" font-family="ui-monospace,monospace" font-size="10" fill="${col.faint}">${money1(v)}</text>`;}
+  // zero line
+  if(lo<0&&hi>0){const zy=Y(0);s+=`<line x1="${padL}" y1="${zy.toFixed(1)}" x2="${W-padR}" y2="${zy.toFixed(1)}" stroke="${col.crit}" stroke-width="1.5" stroke-dasharray="4 4"/>`;}
+  // month ticks
+  for(let m=0;m<=12;m+=2){s+=`<text x="${X(m).toFixed(1)}" y="${H-8}" text-anchor="middle" font-family="ui-monospace,monospace" font-size="10" fill="${col.faint}">${m===0?'now':'m'+m}</text>`;}
+  // base line
+  s+=`<path d="${path(c.base.pts)}" fill="none" stroke="${col.faint}" stroke-width="2" stroke-dasharray="5 4"/>`;
+  // scenario line
+  s+=`<path d="${path(c.scen.pts)}" fill="none" stroke="${col.accent}" stroke-width="2.5"/>`;
+  // scenario endpoints
+  c.scen.pts.forEach((p,i)=>{if(i%1===0)s+=`<circle cx="${X(i).toFixed(1)}" cy="${Y(p).toFixed(1)}" r="2.5" fill="${col.accent}"/>`;});
+  // min marker
+  if(c.scen.min<0){const mi=c.scen.minM;s+=`<circle cx="${X(mi).toFixed(1)}" cy="${Y(c.scen.min).toFixed(1)}" r="4" fill="none" stroke="${col.crit}" stroke-width="2"/>`;}
+  svg.innerHTML=s;
+}
+
+function drawVerdict(c){
+  const v=$('verdict');let cls,txt;
+  const rw=c.runwayScen;
+  if(c.scenNet>=0 && c.scen.min>=0){cls='good';
+    txt=`<b>Clear skies.</b> Scenario nets <b>${money(c.scenNet)}/mo</b> and the balance never dips below zero across 12 months. Lock these moves in and hold the line.`;}
+  else if(c.bridge>0){cls='warn';
+    txt=`<b>Bridge required.</b> Even with these levers the balance bottoms out at <b>${money(c.scen.min)}</b> in month ${c.scen.minM}. You need about <b>${money(c.bridge)}</b> of additional capital to stay solvent — size the bridge to that.`;}
+  else{cls='bad';
+    txt=`<b>Below the glideslope.</b> Base burn is <b>${money(c.baseNet)}/mo</b>; without changes you hit zero in ~<b>${c.runwayBase===Infinity?'—':c.runwayBase.toFixed(1)} months</b>. Pull the levers — reprice PA, cut, and/or land a raise.`;}
+  v.className='verdict '+cls;v.innerHTML=txt;
+}
+
+function drawFoot(c){
+  $('foot').innerHTML=`Seeded live on 2026-07-29 — <b>Mercury Checking $17,151</b> and <b>Brex Checking $2,992</b> read directly; staff roster from <b>Deel</b> (Recurring tab); costs &amp; AP from the <b>Sales</b> workbook and <b>Cashflow Ledger</b>. Amber <span class="flag">need</span> fields await your real numbers — the debt stack, Mercury Savings / Rho / AMEX balances, and PA/lane pricing move the plan most. Runs entirely in your browser, saves locally; export CSV/JSON to share or feed downstream. <b>Live auto-pull isn't wired this session</b> (no claude.ai connector linked) — automation path: a small poller on the Mercury + Brex + Deel APIs (or an Apps Script endpoint off the Cashflow Ledger) writing today's balances into these fields on a schedule.`;
+}
+
+/* ---------- export ---------- */
+function toCSV(){
+  const c=compute();const L=[];
+  L.push(['SupplyNow Cash Recovery Console','as of 2026-07-29']);
+  L.push([]);L.push(['SUMMARY']);
+  L.push(['Liquid cash',c.cash]);L.push(['Net per month (base)',c.baseNet]);L.push(['Net per month (scenario)',c.scenNet]);
+  L.push(['Runway base (months)',c.runwayBase===Infinity?'positive':c.runwayBase.toFixed(1)]);
+  L.push(['Breakeven gap / mo',c.breakevenGap]);L.push(['Bridge needed',c.bridge]);
+  const sect=(t,arr,f)=>{L.push([]);L.push([t]);arr.forEach(f)};
+  sect('CASH ON HAND',S.cash,r=>L.push([r.k,r.v,r.need?'NEED':'']));
+  sect('REVENUE / MO',S.rev,r=>L.push([r.k,r.v,r.need?'NEED':'']));
+  sect('STAFF / MO (W-2)',S.staff,r=>L.push([r.k,r.v,'cut%',r.cut||0,r.on?'ACTIVE':'CUT']));
+  L.push(['Effective payroll',c.payroll]);
+  sect('COSTS / MO (ex-payroll)',S.costs,r=>L.push([r.k,r.v,r.need?'NEED':'']));
+  sect('DEBT STACK',S.debt,r=>L.push([r.k,'bal',r.bal,'pay',r.pay,'apr',r.apr,r.need?'NEED':'']));
+  sect('AGED PAYABLES',S.ap,r=>L.push([r.k,r.v,r.need?'NEED':'']));
+  L.push(['Monthly AP catch-up',S.apCatchup]);
+  sect('RAISES',S.raises,r=>L.push([r.k,r.amt,'month',r.month,r.committed?'COMMITTED':'hoped']));
+  L.push([]);L.push(['LEVERS',JSON.stringify(S.levers)]);
+  return L.map(row=>row.map(x=>`"${String(x??'').replace(/"/g,'""')}"`).join(',')).join('\n');
+}
+async function download(filename,data,type){
+  if(window.claude&&window.claude.downloads){
+    try{await window.claude.downloads.save({filename,data});return}catch(e){}
+  }
+  const blob=new Blob([data],{type});const url=URL.createObjectURL(blob);
+  const a=document.createElement('a');a.href=url;a.download=filename;a.click();URL.revokeObjectURL(url);
+}
+$('export').addEventListener('click',()=>download('supplynow-budget-2026-07-29.csv',toCSV(),'text/csv'));
+$('exportjson').addEventListener('click',()=>download('supplynow-console-state.json',JSON.stringify(S,null,2),'application/json'));
+$('reset').addEventListener('click',()=>{if(confirm('Reset all inputs to the seeded baseline?')){S=structuredClone(DEFAULTS);buildAll();update()}});
+$('import').addEventListener('click',()=>$('importfile').click());
+$('importfile').addEventListener('change',ev=>{
+  const f=ev.target.files[0];if(!f)return;const rd=new FileReader();
+  rd.onload=e=>{try{const r=JSON.parse(e.target.result);
+    if(r && (r.feed || r.cash || r.staff || r.debt || r.costs)){
+      mergeState(r);buildAll();update();drawCurves();renderOvStats();
+
+/* ---------- gate + live feed (GitHub Pages) ---------- */
+const GATE_HASH='5c78b2386ed358c9e71c0f5305d91945c345fc9bca20449c1a11b3f4338fcac3';
+async function sha(s){const b=await crypto.subtle.digest('SHA-256',new TextEncoder().encode(s));return [...new Uint8Array(b)].map(x=>x.toString(16).padStart(2,'0')).join('');}
+async function tryUnlock(){
+  const v=document.getElementById('gatepass').value;
+  const h=await sha(v);
+  if(h===GATE_HASH){window.__key=v;sessionStorage.setItem('sn_unlocked',v);document.getElementById('gate').style.display='none';document.body.classList.remove('locked');}
+  else document.getElementById('gateerr').textContent='Incorrect passphrase.';
+}
+(function initGate(){
+  const saved=sessionStorage.getItem('sn_unlocked');
+  if(saved){window.__key=saved;const g=document.getElementById('gate');if(g)g.style.display='none';}
+  else document.body.classList.add('locked');
+  document.getElementById('gatego').addEventListener('click',tryUnlock);
+  document.getElementById('gatepass').addEventListener('keydown',e=>{if(e.key==='Enter')tryUnlock();});
+})();
+function jsonp(url){return new Promise((res,rej)=>{
+  const cb='__feed_'+Math.floor(performance.now()*1000);
+  const sep=url.indexOf('?')>-1?'&':'?';const s=document.createElement('script');
+  const to=setTimeout(()=>{cleanup();rej(new Error('timeout'))},15000);
+  function cleanup(){clearTimeout(to);try{delete window[cb]}catch(e){}s.remove()}
+  window[cb]=d=>{cleanup();res(d)};s.onerror=()=>{cleanup();rej(new Error('load'))};
+  s.src=url+sep+'callback='+cb;document.body.appendChild(s);
+})}
+async function syncNow(){
+  const url=(document.getElementById('endpoint').value||'').trim();
+  if(!url){alert('Paste your deployed Apps Script /exec URL first.');return}
+  localStorage.setItem('sn_feed_url',url);
+  const badge=document.getElementById('synced');badge.textContent='syncing\u2026';
+  try{let u=url;const key=window.__key||'';if(key)u+=(u.indexOf('?')>-1?'&':'?')+'key='+encodeURIComponent(key);
+    const data=await jsonp(u);
+    if(data&&data.error){badge.textContent=data.error==='unauthorized'?'key rejected':'feed error';return}
+    mergeState(data);buildAll();update();drawCurves();renderOvStats();
+    badge.textContent='\u2713 synced '+new Date().toLocaleTimeString();
+  }catch(e){badge.textContent='sync failed';alert('Could not reach the feed \u2014 check the /exec URL is deployed for "Anyone with the link".')}
+}
+let autoTimer=null;function setAuto(on){if(autoTimer){clearInterval(autoTimer);autoTimer=null}if(on)autoTimer=setInterval(syncNow,300000)}
+(function initSync(){
+  const savedU=localStorage.getItem('sn_feed_url');if(savedU)document.getElementById('endpoint').value=savedU;
+  document.getElementById('syncnow').addEventListener('click',syncNow);
+  document.getElementById('autosync').addEventListener('change',e=>{localStorage.setItem('sn_autosync',e.target.checked?'1':'');setAuto(e.target.checked)});
+  if(localStorage.getItem('sn_autosync')){document.getElementById('autosync').checked=true;setAuto(true)}
+  if(savedU&&window.__key)syncNow();
+})();
+      $('saved').textContent='✓ synced';}
+    else alert('That JSON isn\'t a Console feed — expected cash / staff / debt / costs fields (matches the endpoint or the Export state shape).');
+  }catch(err){alert('Could not read that JSON file.')}};
+  rd.readAsText(f);ev.target.value='';
+});
+
+/* ---------- overview curves (static P&L history) ---------- */
+const HIST={ labels:[], rev:[], net:[] };
+function drawCurves(){
+  const svg=$('curves');if(!svg)return;
+  if(!HIST.rev||!HIST.rev.length||HIST.rev.every(x=>!x)){svg.innerHTML='<text x="560" y="165" text-anchor="middle" fill="#8793A5" font-family="ui-monospace,monospace" font-size="13">Unlock &amp; sync the feed to load financial history</text>';return;}
+  const W=1120,H=340,padL=58,padR=16,padT=16,padB=30;
+  const rev=HIST.rev, spend=rev.map((r,i)=>r-HIST.net[i]), n=rev.length;
+  const cs=getComputedStyle(document.documentElement);
+  const c={acc:cs.getPropertyValue('--accent').trim(),cau:cs.getPropertyValue('--caution').trim(),
+    cl:cs.getPropertyValue('--climb').trim(),cr:cs.getPropertyValue('--critical').trim(),
+    ln:cs.getPropertyValue('--line').trim(),fa:cs.getPropertyValue('--faint').trim()};
+  const all=[...rev,...spend];let lo=Math.min(...all),hi=Math.max(...all);const pd=(hi-lo)*0.1;lo-=pd;hi+=pd;
+  const X=i=>padL+(W-padL-padR)*(i/(n-1)), Y=v=>padT+(H-padT-padB)*(1-(v-lo)/(hi-lo));
+  let s='';
+  for(let g=0;g<=4;g++){const v=lo+(hi-lo)*g/4,y=Y(v);
+    s+=`<line x1="${padL}" y1="${y.toFixed(1)}" x2="${W-padR}" y2="${y.toFixed(1)}" stroke="${c.ln}"/>`;
+    s+=`<text x="${padL-8}" y="${(y+3).toFixed(1)}" text-anchor="end" font-family="ui-monospace,monospace" font-size="10" fill="${c.fa}">${money1(v)}</text>`;}
+  for(let i=0;i<n-1;i++){const x0=X(i),x1=X(i+1),r0=Y(rev[i]),r1=Y(rev[i+1]),s0=Y(spend[i]),s1=Y(spend[i+1]);
+    const p0=rev[i]>=spend[i],p1=rev[i+1]>=spend[i+1];const col=(p0&&p1)?c.cl:(!p0&&!p1)?c.cr:c.cau;
+    s+=`<path d="M${x0.toFixed(1)} ${r0.toFixed(1)} L${x1.toFixed(1)} ${r1.toFixed(1)} L${x1.toFixed(1)} ${s1.toFixed(1)} L${x0.toFixed(1)} ${s0.toFixed(1)} Z" fill="${col}" fill-opacity="0.18"/>`;}
+  const line=(arr,col,w)=>`<path d="${arr.map((v,i)=>(i?'L':'M')+X(i).toFixed(1)+' '+Y(v).toFixed(1)).join(' ')}" fill="none" stroke="${col}" stroke-width="${w}"/>`;
+  s+=line(spend,c.cau,2)+line(rev,c.acc,2.5);
+  rev.forEach((v,i)=>s+=`<circle cx="${X(i).toFixed(1)}" cy="${Y(v).toFixed(1)}" r="2.2" fill="${c.acc}"/>`);
+  for(let i=0;i<n;i+=2)s+=`<text x="${X(i).toFixed(1)}" y="${H-10}" text-anchor="middle" font-family="ui-monospace,monospace" font-size="9.5" fill="${c.fa}">${HIST.labels[i]}</text>`;
+  svg.innerHTML=s;
+}
+function renderOvStats(){
+  if(!HIST.rev||!HIST.rev.length||HIST.rev.every(x=>!x)){const e0=$('ovstats');if(e0)e0.innerHTML='';return;}
+  const rev=HIST.rev,net=HIST.net,spend=rev.map((r,i)=>r-net[i]),n=rev.length,L=n-1;
+  const avg3=(net[L]+net[L-1]+net[L-2])/3, trend=(rev[L]-rev[L-3])/rev[L-3]*100;
+  const t=[
+    ['Latest revenue',money(rev[L]),'Jun 2026',false],
+    ['Latest spend',money(spend[L]),'Jun 2026',false],
+    ['Latest net',money(net[L]),net[L]<0?'operating loss':'operating profit',net[L]<0],
+    ['Trailing 3-mo net',money(avg3)+'/mo',avg3<0?'still bleeding':'positive',avg3<0],
+    ['Revenue trend',(trend>=0?'+':'')+trend.toFixed(0)+'%','3-mo vs Mar',false],
+  ];
+  const el=$('ovstats');if(el)el.innerHTML=t.map(x=>`<div class="ost"><div class="l">${x[0]}</div><div class="v" style="color:${x[3]?'var(--critical)':'var(--ink)'}">${x[1]}</div><div class="l" style="letter-spacing:0;text-transform:none;margin-top:2px">${x[2]}</div></div>`).join('');
+}
+function mergeState(inc){
+  const mA=(cur,ins,fields)=>{if(!Array.isArray(ins))return;ins.forEach(o=>{const m=cur.find(x=>x.k===o.k);
+    if(m){fields.forEach(f=>{if(o[f]!==undefined)m[f]=o[f]});} else if(o.k){cur.push(o);}});};
+  if(inc.cash)mA(S.cash,inc.cash,['v','need']);
+  if(inc.rev)mA(S.rev,inc.rev,['v','need']);
+  if(inc.staff)mA(S.staff,inc.staff,['v','cut','on']);
+  if(inc.costs)mA(S.costs,inc.costs,['v','need']);
+  if(inc.debt)mA(S.debt,inc.debt,['bal','pay','apr','need']);
+  if(inc.ap)mA(S.ap,inc.ap,['v','need']);
+  if(inc.apCatchup!==undefined)S.apCatchup=inc.apCatchup;
+  if(inc.raises)mA(S.raises,inc.raises,['amt','month','committed']);
+  if(inc.levers)Object.assign(S.levers,inc.levers);
+  if(inc.burden)Object.assign(S.burden,inc.burden);
+  if(inc.history&&inc.history.rev&&inc.history.rev.length){HIST.labels=inc.history.labels||HIST.labels;HIST.rev=inc.history.rev;HIST.net=inc.history.net||[];}
+}
+
+/* ---------- init ---------- */
+function buildStaff(){
+  const c=$('staff');c.innerHTML='';
+  const hd=document.createElement('div');hd.className='thd';hd.style.gridTemplateColumns='1.5fr 1fr .7fr .5fr';
+  hd.innerHTML='<span>Person</span><span style="text-align:right">$ / mo</span><span style="text-align:right">% cut</span><span style="text-align:right">on</span>';
+  c.appendChild(hd);
+  S.staff.forEach(p=>{
+    const r=document.createElement('div');r.className='trow';r.style.gridTemplateColumns='1.5fr 1fr .7fr .5fr';
+    r.innerHTML=`<span class="nm">${p.k}</span>
+      <div class="miniinp"><span class="pfx">$</span><input type="number" step="any" value="${p.v}"></div>
+      <div class="miniinp"><input type="number" step="any" value="${p.cut||''}" placeholder="0"></div>
+      <span class="sw" style="width:36px;height:20px;justify-self:end"><input type="checkbox" ${p.on?'checked':''}><span class="tk"></span></span>`;
+    const [amt,cut]=r.querySelectorAll('input[type=number]');
+    amt.addEventListener('input',e=>{p.v=parse(e.target.value);update()});
+    cut.addEventListener('input',e=>{p.cut=Math.max(0,Math.min(100,parse(e.target.value)));update()});
+    r.querySelector('input[type=checkbox]').addEventListener('change',e=>{p.on=e.target.checked;r.style.opacity=e.target.checked?'1':'.5';update()});
+    r.style.opacity=p.on?'1':'.5';
+    c.appendChild(r);
+  });
+  const s=document.createElement('div');s.className='subt';
+  s.innerHTML=`<span>Effective payroll <small style="font-weight:400;color:var(--faint)" id="staff_meta"></small></span><span class="num" id="staff_sub">$0</span>`;
+  c.appendChild(s);
+  const b=document.createElement('div');b.className='toggle';b.style.borderBottom='none';
+  b.innerHTML=`<span class="nm">Loaded cost — employer taxes &amp; fees<small>FICA + FUTA/SUTA + workers comp on W-2</small></span>
+    <div style="display:flex;align-items:center;gap:8px">
+      <div class="miniinp" style="width:52px"><input type="number" step="any" value="${S.burden.pct}"><span class="pfx">%</span></div>
+      <span class="sw"><input type="checkbox" ${S.burden.on?'checked':''}><span class="tk"></span></span>
+    </div>`;
+  b.querySelector('input[type=number]').addEventListener('input',e=>{S.burden.pct=parse(e.target.value);update()});
+  b.querySelector('input[type=checkbox]').addEventListener('change',e=>{S.burden.on=e.target.checked;update()});
+  c.appendChild(b);
+}
+function buildAll(){
+  buildList('cash',S.cash);buildList('rev',S.rev,true,'Total in / mo');
+  buildList('costs',S.costs,true,'Operating (ex-payroll) / mo');
+  buildStaff();buildDebt();buildAP();buildRaises();buildLevers();
+}
+document.querySelectorAll('.tabs button').forEach(b=>b.addEventListener('click',()=>{
+  document.querySelectorAll('.tabs button').forEach(x=>x.classList.remove('on'));
+  b.classList.add('on');const t=b.dataset.tab;
+  $('tab-overview').hidden=(t!=='overview');$('tab-planner').hidden=(t!=='planner');
+  if(t==='overview'){drawCurves();renderOvStats();}else{update();}
+}));
+buildAll();update();drawCurves();renderOvStats();
+</script>
+
+</body>
+</html>
