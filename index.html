@@ -688,7 +688,7 @@ function renderOvStats(){
 }
 function mergeState(inc){
   const mA=(cur,ins,fields)=>{if(!Array.isArray(ins))return;ins.forEach(o=>{const m=cur.find(x=>x.k===o.k);
-    if(m){fields.forEach(f=>{if(o[f]!==undefined)m[f]=o[f]});} else if(o.k){cur.push(o);}});};
+    if(m){fields.forEach(f=>{if(o[f]!==undefined)m[f]=o[f]});}});};
   if(inc.cash)mA(S.cash,inc.cash,['v','need']);
   if(inc.rev)mA(S.rev,inc.rev,['v','need']);
   if(inc.staff)mA(S.staff,inc.staff,['v','cut','on']);
@@ -699,7 +699,6 @@ function mergeState(inc){
   if(inc.raises)mA(S.raises,inc.raises,['amt','month','committed']);
   if(inc.levers)Object.assign(S.levers,inc.levers);
   if(inc.burden)Object.assign(S.burden,inc.burden);
-  if(inc.history&&inc.history.rev&&inc.history.rev.length){HIST.labels=inc.history.labels||HIST.labels;HIST.rev=inc.history.rev;HIST.net=inc.history.net||[];}
 }
 
 /* ---------- init ---------- */
