@@ -634,51 +634,6 @@ $('importfile').addEventListener('change',ev=>{
   rd.onload=e=>{try{const r=JSON.parse(e.target.result);
     if(r && (r.feed || r.cash || r.staff || r.debt || r.costs)){
       mergeState(r);buildAll();update();drawCurves();renderOvStats();
-
-/* ---------- gate + live feed (GitHub Pages) ---------- */
-const GATE_HASH='5c78b2386ed358c9e71c0f5305d91945c345fc9bca20449c1a11b3f4338fcac3';
-async function sha(s){const b=await crypto.subtle.digest('SHA-256',new TextEncoder().encode(s));return [...new Uint8Array(b)].map(x=>x.toString(16).padStart(2,'0')).join('');}
-async function tryUnlock(){
-  const v=document.getElementById('gatepass').value;
-  const h=await sha(v);
-  if(h===GATE_HASH){window.__key=v;sessionStorage.setItem('sn_unlocked',v);document.getElementById('gate').style.display='none';document.body.classList.remove('locked');}
-  else document.getElementById('gateerr').textContent='Incorrect passphrase.';
-}
-(function initGate(){
-  const saved=sessionStorage.getItem('sn_unlocked');
-  if(saved){window.__key=saved;const g=document.getElementById('gate');if(g)g.style.display='none';}
-  else document.body.classList.add('locked');
-  document.getElementById('gatego').addEventListener('click',tryUnlock);
-  document.getElementById('gatepass').addEventListener('keydown',e=>{if(e.key==='Enter')tryUnlock();});
-})();
-function jsonp(url){return new Promise((res,rej)=>{
-  const cb='__feed_'+Math.floor(performance.now()*1000);
-  const sep=url.indexOf('?')>-1?'&':'?';const s=document.createElement('script');
-  const to=setTimeout(()=>{cleanup();rej(new Error('timeout'))},15000);
-  function cleanup(){clearTimeout(to);try{delete window[cb]}catch(e){}s.remove()}
-  window[cb]=d=>{cleanup();res(d)};s.onerror=()=>{cleanup();rej(new Error('load'))};
-  s.src=url+sep+'callback='+cb;document.body.appendChild(s);
-})}
-async function syncNow(){
-  const url=(document.getElementById('endpoint').value||'').trim();
-  if(!url){alert('Paste your deployed Apps Script /exec URL first.');return}
-  localStorage.setItem('sn_feed_url',url);
-  const badge=document.getElementById('synced');badge.textContent='syncing\u2026';
-  try{let u=url;const key=window.__key||'';if(key)u+=(u.indexOf('?')>-1?'&':'?')+'key='+encodeURIComponent(key);
-    const data=await jsonp(u);
-    if(data&&data.error){badge.textContent=data.error==='unauthorized'?'key rejected':'feed error';return}
-    mergeState(data);buildAll();update();drawCurves();renderOvStats();
-    badge.textContent='\u2713 synced '+new Date().toLocaleTimeString();
-  }catch(e){badge.textContent='sync failed';alert('Could not reach the feed \u2014 check the /exec URL is deployed for "Anyone with the link".')}
-}
-let autoTimer=null;function setAuto(on){if(autoTimer){clearInterval(autoTimer);autoTimer=null}if(on)autoTimer=setInterval(syncNow,300000)}
-(function initSync(){
-  const savedU=localStorage.getItem('sn_feed_url');if(savedU)document.getElementById('endpoint').value=savedU;
-  document.getElementById('syncnow').addEventListener('click',syncNow);
-  document.getElementById('autosync').addEventListener('change',e=>{localStorage.setItem('sn_autosync',e.target.checked?'1':'');setAuto(e.target.checked)});
-  if(localStorage.getItem('sn_autosync')){document.getElementById('autosync').checked=true;setAuto(true)}
-  if(savedU&&window.__key)syncNow();
-})();
       $('saved').textContent='✓ synced';}
     else alert('That JSON isn\'t a Console feed — expected cash / staff / debt / costs fields (matches the endpoint or the Export state shape).');
   }catch(err){alert('Could not read that JSON file.')}};
@@ -784,6 +739,49 @@ document.querySelectorAll('.tabs button').forEach(b=>b.addEventListener('click',
   if(t==='overview'){drawCurves();renderOvStats();}else{update();}
 }));
 buildAll();update();drawCurves();renderOvStats();
+
+/* ---------- gate + live feed (GitHub Pages) ---------- */
+const GATE_HASH='5c78b2386ed358c9e71c0f5305d91945c345fc9bca20449c1a11b3f4338fcac3';
+async function sha(s){const b=await crypto.subtle.digest('SHA-256',new TextEncoder().encode(s));return [...new Uint8Array(b)].map(x=>x.toString(16).padStart(2,'0')).join('');}
+async function tryUnlock(){
+  const v=document.getElementById('gatepass').value;const h=await sha(v);
+  if(h===GATE_HASH){window.__key=v;sessionStorage.setItem('sn_unlocked',v);document.getElementById('gate').style.display='none';document.body.classList.remove('locked');}
+  else document.getElementById('gateerr').textContent='Incorrect passphrase.';
+}
+(function initGate(){
+  const saved=sessionStorage.getItem('sn_unlocked');
+  if(saved){window.__key=saved;const g=document.getElementById('gate');if(g)g.style.display='none';}
+  else document.body.classList.add('locked');
+  document.getElementById('gatego').addEventListener('click',tryUnlock);
+  document.getElementById('gatepass').addEventListener('keydown',e=>{if(e.key==='Enter')tryUnlock();});
+})();
+function jsonp(url){return new Promise((res,rej)=>{
+  const cb='__feed_'+Math.floor(performance.now()*1000);const sep=url.indexOf('?')>-1?'&':'?';const s=document.createElement('script');
+  const to=setTimeout(()=>{cleanup();rej(new Error('timeout'))},15000);
+  function cleanup(){clearTimeout(to);try{delete window[cb]}catch(e){}s.remove()}
+  window[cb]=d=>{cleanup();res(d)};s.onerror=()=>{cleanup();rej(new Error('load'))};
+  s.src=url+sep+'callback='+cb;document.body.appendChild(s);
+})}
+async function syncNow(){
+  const url=(document.getElementById('endpoint').value||'').trim();
+  if(!url){alert('Paste your deployed Apps Script /exec URL first.');return}
+  localStorage.setItem('sn_feed_url',url);
+  const badge=document.getElementById('synced');badge.textContent='syncing\u2026';
+  try{let u=url;const key=window.__key||'';if(key)u+=(u.indexOf('?')>-1?'&':'?')+'key='+encodeURIComponent(key);
+    const data=await jsonp(u);
+    if(data&&data.error){badge.textContent=data.error==='unauthorized'?'key rejected':'feed error';return}
+    mergeState(data);buildAll();update();drawCurves();renderOvStats();
+    badge.textContent='\u2713 synced '+new Date().toLocaleTimeString();
+  }catch(e){badge.textContent='sync failed';alert('Could not reach the feed \u2014 check the /exec URL is deployed for "Anyone with the link".')}
+}
+let autoTimer=null;function setAuto(on){if(autoTimer){clearInterval(autoTimer);autoTimer=null}if(on)autoTimer=setInterval(syncNow,300000)}
+(function initSync(){
+  const savedU=localStorage.getItem('sn_feed_url');if(savedU)document.getElementById('endpoint').value=savedU;
+  document.getElementById('syncnow').addEventListener('click',syncNow);
+  document.getElementById('autosync').addEventListener('change',e=>{localStorage.setItem('sn_autosync',e.target.checked?'1':'');setAuto(e.target.checked)});
+  if(localStorage.getItem('sn_autosync')){document.getElementById('autosync').checked=true;setAuto(true)}
+  if(savedU&&window.__key)syncNow();
+})();
 </script>
 
 </body>
