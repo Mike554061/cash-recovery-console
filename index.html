@@ -642,6 +642,13 @@ $('importfile').addEventListener('change',ev=>{
 
 /* ---------- overview curves (static P&L history) ---------- */
 const HIST={ labels:[], rev:[], net:[] };
+function fmtLabel(s){
+  s=String(s);
+  if(/GMT|\d{2}:\d{2}|[A-Za-z]{3}\s[A-Za-z]{3}\s\d/.test(s)){const d=new Date(s);if(!isNaN(d))return d.toLocaleString('en-US',{month:'short'})+" '"+String(d.getFullYear()).slice(2);}
+  const m=s.match(/^([A-Za-z]{3,})\s*'?(\d{2})$/);if(m)return m[1].slice(0,3)+" '"+m[2];
+  if(/^[A-Za-z]{4,}$/.test(s))return s.slice(0,3);
+  return s;
+}
 function drawCurves(){
   const svg=$('curves');if(!svg)return;
   if(!HIST.rev||!HIST.rev.length||HIST.rev.every(x=>!x)){svg.innerHTML='<text x="560" y="165" text-anchor="middle" fill="#8793A5" font-family="ui-monospace,monospace" font-size="13">Unlock &amp; sync the feed to load financial history</text>';return;}
@@ -663,7 +670,7 @@ function drawCurves(){
   const line=(arr,col,w)=>`<path d="${arr.map((v,i)=>(i?'L':'M')+X(i).toFixed(1)+' '+Y(v).toFixed(1)).join(' ')}" fill="none" stroke="${col}" stroke-width="${w}"/>`;
   s+=line(spend,c.cau,2)+line(rev,c.acc,2.5);
   rev.forEach((v,i)=>s+=`<circle cx="${X(i).toFixed(1)}" cy="${Y(v).toFixed(1)}" r="2.2" fill="${c.acc}"/>`);
-  for(let i=0;i<n;i+=2)s+=`<text x="${X(i).toFixed(1)}" y="${H-10}" text-anchor="middle" font-family="ui-monospace,monospace" font-size="9.5" fill="${c.fa}">${HIST.labels[i]}</text>`;
+  for(let i=0;i<n;i+=2)s+=`<text x="${X(i).toFixed(1)}" y="${H-10}" text-anchor="middle" font-family="ui-monospace,monospace" font-size="9.5" fill="${c.fa}">${fmtLabel(HIST.labels[i]||'')}</text>`;
   svg.innerHTML=s;
 }
 function renderOvStats(){
@@ -740,48 +747,37 @@ document.querySelectorAll('.tabs button').forEach(b=>b.addEventListener('click',
 }));
 buildAll();update();drawCurves();renderOvStats();
 
-/* ---------- gate + live feed (GitHub Pages) ---------- */
+/* ---------- gate + live feed ---------- */
 const GATE_HASH='5c78b2386ed358c9e71c0f5305d91945c345fc9bca20449c1a11b3f4338fcac3';
 async function sha(s){const b=await crypto.subtle.digest('SHA-256',new TextEncoder().encode(s));return [...new Uint8Array(b)].map(x=>x.toString(16).padStart(2,'0')).join('');}
-async function tryUnlock(){
-  const v=document.getElementById('gatepass').value;const h=await sha(v);
+async function tryUnlock(){const v=document.getElementById('gatepass').value;const h=await sha(v);
   if(h===GATE_HASH){window.__key=v;sessionStorage.setItem('sn_unlocked',v);document.getElementById('gate').style.display='none';document.body.classList.remove('locked');}
-  else document.getElementById('gateerr').textContent='Incorrect passphrase.';
-}
-(function initGate(){
-  const saved=sessionStorage.getItem('sn_unlocked');
+  else document.getElementById('gateerr').textContent='Incorrect passphrase.';}
+(function initGate(){const saved=sessionStorage.getItem('sn_unlocked');
   if(saved){window.__key=saved;const g=document.getElementById('gate');if(g)g.style.display='none';}
   else document.body.classList.add('locked');
   document.getElementById('gatego').addEventListener('click',tryUnlock);
-  document.getElementById('gatepass').addEventListener('keydown',e=>{if(e.key==='Enter')tryUnlock();});
-})();
-function jsonp(url){return new Promise((res,rej)=>{
-  const cb='__feed_'+Math.floor(performance.now()*1000);const sep=url.indexOf('?')>-1?'&':'?';const s=document.createElement('script');
+  document.getElementById('gatepass').addEventListener('keydown',e=>{if(e.key==='Enter')tryUnlock();});})();
+function jsonp(url){return new Promise((res,rej)=>{const cb='__feed_'+Math.floor(performance.now()*1000);const sep=url.indexOf('?')>-1?'&':'?';const s=document.createElement('script');
   const to=setTimeout(()=>{cleanup();rej(new Error('timeout'))},15000);
   function cleanup(){clearTimeout(to);try{delete window[cb]}catch(e){}s.remove()}
   window[cb]=d=>{cleanup();res(d)};s.onerror=()=>{cleanup();rej(new Error('load'))};
-  s.src=url+sep+'callback='+cb;document.body.appendChild(s);
-})}
-async function syncNow(){
-  const url=(document.getElementById('endpoint').value||'').trim();
+  s.src=url+sep+'callback='+cb;document.body.appendChild(s);})}
+async function syncNow(){const url=(document.getElementById('endpoint').value||'').trim();
   if(!url){alert('Paste your deployed Apps Script /exec URL first.');return}
-  localStorage.setItem('sn_feed_url',url);
-  const badge=document.getElementById('synced');badge.textContent='syncing\u2026';
+  localStorage.setItem('sn_feed_url',url);const badge=document.getElementById('synced');badge.textContent='syncing\u2026';
   try{let u=url;const key=window.__key||'';if(key)u+=(u.indexOf('?')>-1?'&':'?')+'key='+encodeURIComponent(key);
     const data=await jsonp(u);
     if(data&&data.error){badge.textContent=data.error==='unauthorized'?'key rejected':'feed error';return}
     mergeState(data);buildAll();update();drawCurves();renderOvStats();
     badge.textContent='\u2713 synced '+new Date().toLocaleTimeString();
-  }catch(e){badge.textContent='sync failed';alert('Could not reach the feed \u2014 check the /exec URL is deployed for "Anyone with the link".')}
-}
+  }catch(e){badge.textContent='sync failed';alert('Could not reach the feed \u2014 check the /exec URL is deployed for "Anyone with the link".')}}
 let autoTimer=null;function setAuto(on){if(autoTimer){clearInterval(autoTimer);autoTimer=null}if(on)autoTimer=setInterval(syncNow,300000)}
-(function initSync(){
-  const savedU=localStorage.getItem('sn_feed_url');if(savedU)document.getElementById('endpoint').value=savedU;
+(function initSync(){const savedU=localStorage.getItem('sn_feed_url');if(savedU)document.getElementById('endpoint').value=savedU;
   document.getElementById('syncnow').addEventListener('click',syncNow);
   document.getElementById('autosync').addEventListener('change',e=>{localStorage.setItem('sn_autosync',e.target.checked?'1':'');setAuto(e.target.checked)});
   if(localStorage.getItem('sn_autosync')){document.getElementById('autosync').checked=true;setAuto(true)}
-  if(savedU&&window.__key)syncNow();
-})();
+  if(savedU&&window.__key)syncNow();})();
 </script>
 
 </body>
