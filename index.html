@@ -333,15 +333,17 @@ const DEFAULTS={
     {k:'Legal & G&A',v:0,need:true},
   ],
   debt:[
-    {k:'Term loan 1',bal:0,pay:0,apr:0,need:true},
-    {k:'MCA 1',bal:0,pay:0,apr:0,need:true},
-    {k:'MCA 2',bal:0,pay:0,apr:0,need:true},
-    {k:'MCA 3',bal:0,pay:0,apr:0,need:true},
-    {k:'Revolving 1',bal:0,pay:0,apr:0,need:true},
-    {k:'Revolving 2',bal:0,pay:0,apr:0,need:true},
-    {k:'Insurance finance',bal:0,pay:0,apr:0,need:true},
-    {k:'Card 1',bal:0,pay:0,apr:0,need:true},
-    {k:'Card 2',bal:0,pay:0,apr:0,need:true},
+    {k:'Insurance financing (annual premium)',bal:0,pay:15500,apr:0,need:true},
+    {k:'JumpStart Inc',bal:0,pay:6250,apr:0,need:true},
+    {k:'Claros Financial',bal:0,pay:0,apr:0,need:true},
+    {k:'Revenued (settled)',bal:0,pay:0,apr:0,need:true},
+    {k:'ECDI microloan',bal:0,pay:336,apr:0,need:true},
+    {k:'HFLA (0% loan)',bal:0,pay:278,apr:0,need:true},
+    {k:'Ohio Workers Comp (back pay)',bal:0,pay:1153,apr:0,need:true},
+    {k:'Capital One (Aaron)',bal:0,pay:333,apr:0,need:true},
+    {k:'Mercury Credit card',bal:0,pay:0,apr:0,need:true},
+    {k:'Affirm (BNPL)',bal:0,pay:108,apr:0,need:true},
+    {k:'Charles Schwab',bal:0,pay:0,apr:0,need:true},
   ],
   ap:[
     {k:'Fleet partner',v:0,need:true},
@@ -359,7 +361,7 @@ const DEFAULTS={
   burden:{on:true,pct:11.5},
   cutAmt:{legal:5000,software:1000,nsf:1000}
 };
-const KEY='sn_cash_console_v3';
+const KEY='sn_cash_console_v4';
 let S=load();
 function load(){try{const r=JSON.parse(localStorage.getItem(KEY));if(r&&r.cash&&r.staff){if(!r.burden)r.burden=structuredClone(DEFAULTS.burden);return r}}catch(e){}return structuredClone(DEFAULTS)}
 function save(){try{localStorage.setItem(KEY,JSON.stringify(S));flashSaved()}catch(e){}}
